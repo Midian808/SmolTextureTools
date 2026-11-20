@@ -716,6 +716,75 @@ namespace Midian.TextureTools.Tests
         }
 
         [Test]
+        public void Apply_IsOneUndoStep_RestoringTheHdrpMaterial()
+        {
+            var plans = HdrpToBetterLit.Plan(new[] { Write("undoA", StandardLit()), Write("undoB", StandardLit().Float("_AlphaCutoffEnable", 1f)) }, 0f);
+            Assert.AreEqual(2, HdrpToBetterLit.Apply(plans, ExistingOutput.Replace));
+            Assert.IsFalse(HdrpToBetterLit.ShaderIsMissing(plans[0].Material));
+
+            Undo.PerformUndo();
+
+            foreach (var plan in plans)
+            {
+                var material = AssetDatabase.LoadAssetAtPath<Material>(plan.MaterialPath);
+                Assert.IsTrue(HdrpToBetterLit.ShaderIsMissing(material), plan.MaterialPath);
+                Assert.AreEqual(baseMap, AssetDatabase.GetAssetPath(SavedProperties.Read(material).Texture("_BaseColorMap").Texture));
+                EditorUtility.SetDirty(material);
+            }
+            AssetDatabase.SaveAssets();
+            foreach (var plan in plans)
+            {
+                StringAssert.Contains("guid: " + HdrpToBetterLit.HdrpLitGuid, FileText(plan.MaterialPath));
+                Assert.AreEqual(MaterialSource.HdrpLit, Plan(plan.MaterialPath).Source, "convertible again");
+            }
+        }
+
+        [Test]
+        public void WindowText_BecomesTotalsAndLog()
+        {
+            string previous = HdrpToBetterLit.GeneratedFolder;
+            HdrpToBetterLit.GeneratedFolder = assets.Folder + "/Generated";
+            try
+            {
+                string heightMap = Grey("height.png", 14, out _);
+                var plans = HdrpToBetterLit.Plan(new[]
+                {
+                    Write("w1", StandardLit()),
+                    Write("w2", StandardLit().Float("_AlphaCutoffEnable", 1f)),
+                    Write("w3", new HdrpMaterial().Float("_SurfaceType", 1f)),
+                    Write("w4", StandardLit().Texture("_HeightMap", heightMap).Float("_DisplacementMode", 1f)),
+                    Write("w5", StandardLit().Texture("_HeightMap", heightMap).Float("_DisplacementMode", 1f)),
+                    Write("w6", StandardLit().Float("_MaterialID", 4f)),
+                    Write("w7", new HdrpMaterial { ShaderGuid = HdrpToBetterLit.HdrpDecalGuid }),
+                }, 0f);
+                string standard = assets.Path("standard.mat");
+                AssetDatabase.CreateAsset(new Material(Shader.Find("Standard")), standard);
+                plans.AddRange(HdrpToBetterLit.Plan(new[] { standard }, 0f));
+
+                CollectionAssert.AreEqual(
+                    new[] { "Lit", "Lit (alpha clip)", "Lit Alpha", "Lit Tessellation", "Lit Tessellation", "Lit", "(skipped)" },
+                    plans.Where(p => p.Listed).Select(HdrpToBetterLit.Becomes));
+
+                //w4 and w5 share one albedo + height file; w6 needs the white texture, which doesn't exist yet
+                Assert.AreEqual(2, HdrpToBetterLit.PackedTextureCount(plans));
+                Assert.AreEqual("6 to convert · 1 skipped · 2 packed textures will be written", HdrpToBetterLit.Totals(plans));
+
+                string log = HdrpToBetterLit.Log(plans, 0f);
+                StringAssert.StartsWith("HDRP to Better Lit (EV100 0): 6 converted, 1 skipped", log);
+                StringAssert.Contains("w7.mat: skipped", log);
+                StringAssert.DoesNotContain("standard.mat", log);
+
+                HdrpToBetterLit.Apply(plans, ExistingOutput.Replace);
+                var after = HdrpToBetterLit.Plan(new[] { Write("w8", StandardLit().Float("_MaterialID", 4f)) }, 0f);
+                Assert.AreEqual(0, HdrpToBetterLit.PackedTextureCount(after), "the white texture now exists");
+            }
+            finally
+            {
+                HdrpToBetterLit.GeneratedFolder = previous;
+            }
+        }
+
+        [Test]
         public void Summary_ListsNotesOrSkipReason()
         {
             var skipped = Plan(Write("decal", new HdrpMaterial { ShaderGuid = HdrpToBetterLit.HdrpDecalGuid }));

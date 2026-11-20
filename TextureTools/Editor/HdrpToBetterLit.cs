@@ -963,5 +963,46 @@ namespace Midian.TextureTools
             string line = plan.MaterialPath + ": " + Describe(plan.Source) + " → Better Lit " + plan.Target;
             return plan.Notes.Count == 0 ? line : line + "\n    " + string.Join("\n    ", plan.Notes);
         }
+
+        //The window's "Becomes" column (§9.5)
+        public static string Becomes(ConversionPlan plan)
+        {
+            if (!plan.Converts) return "(skipped)";
+            string name;
+            switch (plan.Target)
+            {
+                case BetterLitShader.LitAlpha: name = "Lit Alpha"; break;
+                case BetterLitShader.LitTessellation: name = "Lit Tessellation"; break;
+                case BetterLitShader.LitTessellationAlpha: name = "Lit Tessellation Alpha"; break;
+                default: name = "Lit"; break;
+            }
+            return plan.Keywords.Contains("_ALPHACUT") ? name + " (alpha clip)" : name;
+        }
+
+        //Packed texture files a batch will write: one per distinct job, the shared white texture only if it doesn't exist yet
+        public static int PackedTextureCount(IEnumerable<ConversionPlan> plans)
+        {
+            return plans.Where(p => p.Converts).SelectMany(p => p.Packs.Values)
+                .Where(j => j.Kind != PackKind.White || AssetDatabase.LoadAssetAtPath<Texture>(j.OutputPath) == null)
+                .Select(j => j.Key).Distinct().Count();
+        }
+
+        //"13 to convert · 8 skipped · 2 packed textures will be written"
+        public static string Totals(IList<ConversionPlan> plans)
+        {
+            var listed = plans.Where(p => p.Listed).ToList();
+            int converting = listed.Count(p => p.Converts);
+            int packed = PackedTextureCount(listed);
+            string text = converting + " to convert · " + (listed.Count - converting) + " skipped";
+            return packed == 0 ? text : text + " · " + packed + " packed texture" + (packed == 1 ? "" : "s") + " will be written";
+        }
+
+        //The whole batch's log: a heading, then every listed material's Summary
+        public static string Log(IList<ConversionPlan> plans, float ev100)
+        {
+            var listed = plans.Where(p => p.Listed).ToList();
+            return "HDRP to Better Lit (EV100 " + ev100.ToString("0.##") + "): " + listed.Count(p => p.Converts) + " converted, " +
+                   listed.Count(p => !p.Converts) + " skipped\n" + string.Join("\n", listed.Select(Summary));
+        }
     }
 }

@@ -1,8 +1,8 @@
 # Texture Tools
 
-Three Editor-only texture tools. Copy this whole folder (with its `.meta` files) anywhere under a project's `Assets` folder; it needs nothing else. It works in any render pipeline (Built-in, URP, HDRP) and adds nothing to builds.
+Four Editor-only texture and material tools. Copy this whole folder (with its `.meta` files) anywhere under a project's `Assets` folder; it needs nothing else. It works in any render pipeline (Built-in, URP, HDRP) and adds nothing to builds. HDRP to Better Lit converts only when Better Lit Shader is in the project.
 
-The tools leave their sources untouched and write a **new file next to the source**. Normal Green Flip and Pack Alpha give the new file the source's import settings, including platform overrides.
+The texture tools leave their sources untouched and write a **new file next to the source**. Normal Green Flip and Pack Alpha give the new file the source's import settings, including platform overrides.
 
 ## Normal Green Flip
 
@@ -64,9 +64,21 @@ Rows with no match keep their value.
 
 The result is a PNG next to the first texture, named `<name>_MaskMap.png` (or `_PackedNormal`, `_Detail`, `_AlbedoHeight`, `_Packed`). It is the size of the largest input, and 16-bit if any input is. It's imported as a plain texture (packed normals must not be imported as Normal maps), with sRGB off except for Albedo + Height, and at a Max Size that keeps its full resolution.
 
+## HDRP to Better Lit
+
+Converts materials made for **HDRP's Lit shader**, which show pink in a Built-in project, into **Better Lit Shader** materials. Open it from **Tools → Texture Tools → HDRP to Better Lit**, or select materials and/or folders and right-click → **Texture Tools → HDRP to Better Lit...**. Folders are searched recursively.
+
+The window lists each HDRP material with what it becomes and anything that doesn't carry over. Click a row for the full details. Materials that already have a working shader aren't listed. **Convert** then changes them **in place**, keeping their GUIDs, so prefabs and scenes using them update. It's one Undo step, and HDRP's values stay saved in each material file. The result is logged to the Console, and **Copy log** copies it.
+
+- **Converted:** HDRP Lit and Lit Tessellation. Opaque materials become Better Lit Lit, alpha-clipped ones become Lit with alpha clip, transparent ones become Lit Alpha, and displaced ones become Lit Tessellation or use parallax. Textures, tint, mask-map remaps, detail maps, emission, double-sided, planar and triplanar mapping, specular colour and subsurface scattering (as Better Lit's approximate SSS) carry over.
+- **Listed but not converted:** LayeredLit, Unlit, AxF, TerrainLit, Decal, URP Lit and unknown missing shaders.
+- **Won't look identical:** HDRP's lighting and exposure differ from Built-in's. Notes flag what to check, such as parallax height, SSS tint and blend modes Better Lit doesn't have.
+- **HDRP exposure (EV100):** sets how bright converted emission is. 0 keeps dim emission visible. Raise it for materials made for bright scenes.
+- **New textures:** Better Lit keeps height in the albedo's alpha and SSS thickness in its own texture, so the tool writes `<albedo>_AlbedoHeight.png` or `<thickness map>_SSS.png` next to the sources when needed. Specular materials without a specular map get a shared `Generated/White.png` in this folder. Undo doesn't remove these files.
+
 ## How the pixels are read
 
-All three tools read the **source file**, not the imported texture, because the imported texture may be compressed, shrunk by Max Size, or (for normal maps) stored in a rearranged form. To do this, they import a temporary copy raw in `Assets/__TextureToolsTemp` and delete it immediately. If the Editor crashes partway through, the folder is removed the next time the Editor loads. Every format Unity's TextureImporter handles works: PNG, JPG, TGA, PSD, TIF, EXR, HDR, BMP, GIF and PICT. **DDS** files work too. The tools read the data stored in the DDS, which is usually already compressed, and write the result as a PNG, because Unity can't write DDS. Point your material at the new PNG. The PNG looks exactly as the DDS did in Unity, including orientation. Unity shows BC7 DDS files upside down, and the PNG keeps that.
+All the texture tools read the **source file**, not the imported texture, because the imported texture may be compressed, shrunk by Max Size, or (for normal maps) stored in a rearranged form. To do this, they import a temporary copy raw in `Assets/__TextureToolsTemp` and delete it immediately. If the Editor crashes partway through, the folder is removed the next time the Editor loads. Every format Unity's TextureImporter handles works: PNG, JPG, TGA, PSD, TIF, EXR, HDR, BMP, GIF and PICT. **DDS** files work too. The tools read the data stored in the DDS, which is usually already compressed, and write the result as a PNG, because Unity can't write DDS. Point your material at the new PNG. The PNG looks exactly as the DDS did in Unity, including orientation. Unity shows BC7 DDS files upside down, and the PNG keeps that.
 
 ## Tests
 

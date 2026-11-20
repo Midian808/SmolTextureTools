@@ -6,7 +6,7 @@ A design for four Editor-only texture and material tools:
 - **Mask Texture Maker** — builds a packed texture (Better Lit Shader / HDRP mask map and Better Lit's other packed layouts) from input textures and constant values (§8).
 - **HDRP to Better Lit** — batch-converts materials made for HDRP's Lit shader into Better Lit Shader materials for the Built-in pipeline (§9).
 
-**Status:** Normal Green Flip and Pack Alpha are built, and the real-asset and portability checks (§7, Phase 4) are still to do. Mask Texture Maker is built (§8, decisions M1–M9). Its real-asset check (§8.6, M-3) is still to do. HDRP to Better Lit (§9, decisions H1–H21, all settled): Phases H-1 and H-2 are built; H-3 (window) and H-4 (real-asset check) are not started. All 134 Texture Tools EditMode tests pass.
+**Status:** Normal Green Flip and Pack Alpha are built, and the real-asset and portability checks (§7, Phase 4) are still to do. Mask Texture Maker is built (§8, decisions M1–M9). Its real-asset check (§8.6, M-3) is still to do. HDRP to Better Lit (§9, decisions H1–H21, all settled): Built and checked: all four phases are done, its 33 tests pass, and the real-asset check on this project's HDRP Lit materials passed.
 
 ---
 
@@ -334,7 +334,7 @@ HDRP defaults (used when a property isn't saved, H1) are from `Lit.shader` in Un
 
 ```
 HDRP to Better Lit                                    Better Lit: installed ✓
-[ Add selection ]  [ Add folder… ]  [ Clear ]
+[ Add selection ]  [ Add folder… ]  [ Refresh ]  [ Clear ]
 HDRP exposure (EV100): [ 0 ]   (H21)
 
 Material                 Source          Becomes              Notes
@@ -348,7 +348,7 @@ Grass_Layered            HDRP LayeredLit (skipped)            LayeredLit not con
                                                                     [ Convert ]
 ```
 
-Clicking a row selects and pings the material. Flags show in full in a details panel under the list.
+Clicking a row selects and pings the material. Its flags, and any packed texture it will write, show in full in a details panel under the list. The list is read when materials are added, when EV100 changes and on **Refresh**. **Convert** reads the materials again first, so nothing changed since is overwritten, then asks for confirmation. Afterwards the log is in the Console, and **Copy log** copies it.
 
 ### 9.6 Files
 Added to the folder in §2:
@@ -367,8 +367,8 @@ Tests/
 |---|---|---|
 | H-1 | Classification, saved-property reader, plan for Standard / opaque / clipped / transparent, keywords, remaps, tiling, double-sided, emission + tests | Done |
 | H-2 | Height packing, displacement, Specular Colour, SSS/Translucent packing, UV projection modes + tests | Done. 31 HDRP to Better Lit tests in all |
-| H-3 | Window, report, context menu, Undo, log, and the converter's section in the folder's `README.md` (it has none yet, D15g) | Not started |
-| H-4 | Real-asset check: the 13 HDRP Lit materials in this project (below), side by side with their textures in the Scene view | Not started |
+| H-3 | Window, report, context menu, Undo, log, and the converter's section in the folder's `README.md` (D15g) | Done: 33 HDRP to Better Lit tests pass, including one Undo step that restores the HDRP material. The window itself is checked in H-4 |
+| H-4 | Real-asset check: the 13 HDRP Lit materials in this project (below), side by side with their textures in the Scene view | Done: converted through the window, and every check below passed |
 
 **Tests (EditMode, through the real path):** each test writes a `.mat` file as YAML text, in the form HDRP saves it, with `m_Shader` pointing at the real HDRP Lit or LitTessellation GUID. Those shaders aren't in the project, so the shader is missing exactly as it is for a real imported asset. The test imports the file, runs the tool's code path, and reads the result back.
 - Opaque Standard with base/mask/normal: shader is Better Lit Lit; textures, tint and remaps land per §9.3; `_NORMALMAP` and `_MASKMAP` on; no HDRP keywords left; the GUID is unchanged; HDRP properties are still saved.
